@@ -34,6 +34,8 @@ def build_lexical_edges(chunks: list[CodeChunk], sections: list[DocSection]) -> 
     for chunk in chunks:
         by_name.setdefault(chunk.name, []).append(chunk.id)
         by_name.setdefault(chunk.qualified_name, []).append(chunk.id)
+        for alias in chunk.aliases:
+            by_name.setdefault(alias, []).append(chunk.id)
 
     edges: list[Edge] = []
     seen: set[tuple[str, str]] = set()

@@ -83,10 +83,11 @@ def _signature_fp(node: ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef) -
 
 
 def _body_fp(node: ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef) -> str:
-    """Fingerprint of the body AST with the docstring stripped.
+    """Fingerprint of the body AST (plus decorators) with the docstring stripped.
 
     Comments and whitespace never reach the AST, so two bodies that differ only
-    cosmetically produce the same fingerprint.
+    cosmetically produce the same fingerprint. Decorators are included so a
+    changed route path or CLI option counts as a behavior change.
     """
     body = list(node.body)
     if (
@@ -96,8 +97,22 @@ def _body_fp(node: ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef) -> str
         and isinstance(body[0].value.value, str)
     ):
         body = body[1:]
-    dumped = "\n".join(ast.dump(stmt, include_attributes=False) for stmt in body)
+    dumped = "\n".join(
+        [ast.dump(dec, include_attributes=False) for dec in node.decorator_list]
+        + [ast.dump(stmt, include_attributes=False) for stmt in body]
+    )
     return content_hash(dumped)
+
+
+def _config_field_names(node: ast.ClassDef) -> list[str]:
+    """Field names declared on a settings/config class body."""
+    names: list[str] = []
+    for stmt in node.body:
+        if isinstance(stmt, ast.AnnAssign) and isinstance(stmt.target, ast.Name):
+            names.append(stmt.target.id)
+        elif isinstance(stmt, ast.Assign):
+            names.extend(t.id for t in stmt.targets if isinstance(t, ast.Name))
+    return names
 
 
 def _node_source(node: ast.stmt, lines: list[str]) -> tuple[str, int, int]:
@@ -119,7 +134,11 @@ def _make_chunk(
     signature: str,
 ) -> CodeChunk:
     source, start, end = _node_source(node, lines)
+    aliases: list[str] = []
+    if kind == ChunkKind.CONFIG and isinstance(node, ast.ClassDef):
+        aliases = _config_field_names(node)
     return CodeChunk(
+        aliases=aliases,
         id=f"{rel_path}::{qualified_name}",
         kind=kind,
         file=rel_path,

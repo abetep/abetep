@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 from pathlib import Path
 
 from git import Repo
@@ -66,6 +67,38 @@ def diff_chunks(repo_path: Path, base_ref: str, head_ref: str) -> list[ChunkChan
                 )
             )
     return changes
+
+
+def config_changed_fields(old: CodeChunk | None, new: CodeChunk | None) -> set[str]:
+    """Config field names added, removed, or whose declaration changed."""
+
+    def field_map(chunk: CodeChunk | None) -> dict[str, str]:
+        if chunk is None:
+            return {}
+        try:
+            tree = ast.parse(chunk.source)
+        except SyntaxError:
+            return {}
+        node = tree.body[0] if tree.body else None
+        if not isinstance(node, ast.ClassDef):
+            return {}
+        fields: dict[str, str] = {}
+        for stmt in node.body:
+            if isinstance(stmt, ast.AnnAssign) and isinstance(stmt.target, ast.Name):
+                fields[stmt.target.id] = ast.dump(stmt, include_attributes=False)
+            elif isinstance(stmt, ast.Assign):
+                for target in stmt.targets:
+                    if isinstance(target, ast.Name):
+                        fields[target.id] = ast.dump(stmt, include_attributes=False)
+        return fields
+
+    old_fields = field_map(old)
+    new_fields = field_map(new)
+    return {
+        name
+        for name in old_fields.keys() | new_fields.keys()
+        if old_fields.get(name) != new_fields.get(name)
+    }
 
 
 def _classify(old: CodeChunk | None, new: CodeChunk | None) -> ChangeType | None:
