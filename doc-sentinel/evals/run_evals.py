@@ -129,7 +129,7 @@ def render_report(results: list[CaseResult], stage: str) -> str:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--live", action="store_true", help="Use a real LLM for verification")
-    parser.add_argument("--llm", choices=["anthropic", "openai"], default="anthropic")
+    parser.add_argument("--llm", choices=["openai"], default="openai")
     parser.add_argument("--write-results", action="store_true")
     args = parser.parse_args()
 

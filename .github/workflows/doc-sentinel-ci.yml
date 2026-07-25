@@ -24,7 +24,7 @@ jobs:
         with:
           python-version: "3.11"
       - name: Install dependencies
-        run: pip install -e ".[dev]" pydantic markdown-it-py GitPython PyGithub
+        run: pip install -e ".[dev]" pydantic markdown-it-py GitPython PyGithub openai
       - name: Lint
         run: ruff check src tests && ruff format --check src tests
       - name: Type-check

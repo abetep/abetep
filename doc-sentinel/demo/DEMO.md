@@ -7,7 +7,8 @@ that heals them."
 
 ```bash
 # A demo repo with doc-sentinel installed (see README quickstart) and
-# ANTHROPIC_API_KEY / OPENAI_API_KEY set as repo secrets.
+# OPENAI_API_KEY set as a repo secret (or llm-base-url pointing at your
+# own OpenAI-compatible endpoint).
 git clone <your-demo-repo> && cd <your-demo-repo>
 git checkout -b rename-include-history
 ```
