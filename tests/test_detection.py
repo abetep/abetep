@@ -207,3 +207,41 @@ def test_check_report_via_cli_offline(mini_repo: Path, capsys) -> None:
 
     report = CheckReport.model_validate(json.loads(out.read_text()))
     assert report.changes and report.unverified
+
+
+def test_removed_function_still_implicates_docs(mini_repo: Path) -> None:
+    """The index is built at head, where a removed chunk no longer exists;
+    the lost-name fallback must still find sections that mention it."""
+    repo = git_repo(mini_repo)
+    api = mini_repo / "app" / "api.py"
+    text = api.read_text()
+    api.write_text(text[: text.index("def format_username")].rstrip() + "\n")
+    commit_all(repo, "remove format_username")
+    assert main(["index", "--repo", str(mini_repo), "--embeddings", "none"]) == 0
+
+    index = load_index(mini_repo)
+    changes = diff_chunks(mini_repo, "HEAD~1", "HEAD")
+    suspects = find_suspects(index, changes)
+    headings = {s.section.heading_display for s in suspects}
+    assert "User Guide > API > Formatting" in headings
+
+
+def test_config_change_scopes_to_mentioning_sections(mini_repo: Path) -> None:
+    """A changed config default only implicates sections that mention the
+    changed field (or the class), not every section linked to the class."""
+    (mini_repo / "docs" / "other.md").write_text(
+        "# Ops\n\n## Debug flag\n\nSet `debug` to true for verbose logs.\n"
+    )
+    repo = git_repo(mini_repo)
+    assert main(["index", "--repo", str(mini_repo), "--embeddings", "none"]) == 0
+    config = mini_repo / "app" / "config.py"
+    config.write_text(
+        config.read_text().replace("timeout_seconds: int = 30", "timeout_seconds: int = 60")
+    )
+    commit_all(repo, "raise timeout")
+
+    index = load_index(mini_repo)
+    suspects = find_suspects(index, diff_chunks(mini_repo, "HEAD~1", "HEAD"))
+    headings = {s.section.heading_display for s in suspects}
+    assert "User Guide > Configuration > Environment Variables" in headings
+    assert "Ops > Debug flag" not in headings

@@ -37,6 +37,8 @@ class CodeChunk(BaseModel):
     # AST fingerprints used by change classification (Phase 2).
     signature_fp: str
     body_fp: str
+    # Extra linkable names, e.g. config field names on a settings class.
+    aliases: list[str] = Field(default_factory=list)
 
     def embedding_text(self) -> str:
         parts = [f"{self.kind.value} {self.qualified_name}", f"signature: {self.signature}"]
