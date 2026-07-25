@@ -34,7 +34,6 @@ jobs:
           fetch-depth: 0   # doc-sentinel diffs base..head
       - uses: abetep/doc-sentinel@v0
         with:
-          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
 ```
 
@@ -106,22 +105,44 @@ LLM-verified metrics and rubric-graded corrections.
 | Input | Default | Description |
 |---|---|---|
 | `github-token` | `${{ github.token }}` | Token for PR comments and the docs-fix PR |
-| `anthropic-api-key` | — | Required when `llm-provider: anthropic` |
-| `openai-api-key` | — | Embeddings; also the LLM when `llm-provider: openai` |
-| `llm-provider` | `anthropic` | `anthropic` \| `openai` \| `none` (detect-and-flag only) |
+| `openai-api-key` | — | Key for api.openai.com (embeddings + LLM) |
+| `llm-provider` | `openai` | `openai` \| `none` (detect-and-flag only) |
+| `llm-base-url` | — | Any OpenAI-compatible endpoint (Azure, Ollama, vLLM, OpenRouter…) |
+| `llm-model` | `gpt-4o` | Model name sent to the LLM endpoint |
+| `llm-api-key` | — | Key for the alternate endpoint (falls back to `openai-api-key`) |
 | `embeddings` | `openai` | `openai` \| `none` (lexical links only, zero embedding cost) |
 | `confidence-threshold` | `0.8` | Minimum confidence to auto-fix instead of draft/flag |
 | `mode` | `fix` | `fix` (open docs PR) \| `flag-only` (comment only) |
 
 Outputs: `stale-count`, `fixed-count`, `flagged-count`, `fix-pr-url`.
 
+### Bring your own model
+
+The LLM client speaks the OpenAI chat-completions API — the de-facto
+standard — so doc-sentinel is not tied to any single vendor. Point it at a
+self-hosted or third-party server:
+
+```yaml
+      - uses: abetep/doc-sentinel@v0
+        with:
+          llm-base-url: "http://ollama.internal:11434/v1"
+          llm-model: "qwen2.5-coder:32b"
+          embeddings: "none"   # fully offline: lexical linking only
+```
+
+With `embeddings: none` and a local model, no data ever leaves your
+infrastructure. The same overrides work on the CLI via
+`DOC_SENTINEL_LLM_BASE_URL`, `DOC_SENTINEL_LLM_MODEL` and
+`DOC_SENTINEL_LLM_API_KEY`.
+
 ## Cost per run
 
 Every run prints its token usage and cost estimate, and the PR comment
 includes it. Typical PR (3 changed functions, 2 suspect sections, 1 fix):
 2 verify calls + 1 generate + 1 validate ≈ 15–25k tokens ≈ **$0.05–$0.15**
-with Claude Sonnet. Embeddings are ~$0.0004 per full index of a 10k-line
-repo and near-zero after (content-hash cache).
+with gpt-4o (and $0 against a self-hosted endpoint). Embeddings are
+~$0.0004 per full index of a 10k-line repo and near-zero after
+(content-hash cache).
 
 ## Local CLI
 
@@ -136,7 +157,7 @@ doc-sentinel repair --report report.json --apply # fix it
 
 ```bash
 pip install -e ".[dev]"
-pytest        # 47 tests, fully offline (LLM calls are mocked)
+pytest        # 51 tests, fully offline (LLM calls are mocked)
 ruff check src tests && mypy
 python evals/run_evals.py
 ```

@@ -13,16 +13,22 @@ inputs:
     description: "Token used to comment on the PR and open the docs fix PR"
     required: true
     default: ${{ github.token }}
-  anthropic-api-key:
-    description: "Anthropic API key (required when llm-provider is anthropic)"
-    required: false
   openai-api-key:
-    description: "OpenAI API key (embeddings; also LLM when llm-provider is openai)"
+    description: "OpenAI API key (embeddings and LLM against api.openai.com)"
     required: false
   llm-provider:
-    description: "anthropic | openai | none (none = detect and flag only, no LLM)"
+    description: "openai | none (none = detect and flag only, no LLM)"
     required: false
-    default: "anthropic"
+    default: "openai"
+  llm-base-url:
+    description: "Alternate OpenAI-compatible endpoint (Azure, Ollama, vLLM, OpenRouter, ...)"
+    required: false
+  llm-model:
+    description: "Model name for the LLM endpoint (default gpt-4o)"
+    required: false
+  llm-api-key:
+    description: "API key for the alternate endpoint (falls back to openai-api-key)"
+    required: false
   embeddings:
     description: "openai | none (none = lexical links only)"
     required: false
@@ -51,8 +57,10 @@ runs:
   image: "Dockerfile"
   env:
     GITHUB_TOKEN: ${{ inputs.github-token }}
-    ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
     OPENAI_API_KEY: ${{ inputs.openai-api-key }}
+    DOC_SENTINEL_LLM_BASE_URL: ${{ inputs.llm-base-url }}
+    DOC_SENTINEL_LLM_MODEL: ${{ inputs.llm-model }}
+    DOC_SENTINEL_LLM_API_KEY: ${{ inputs.llm-api-key }}
   args:
     - "run"
     - "--llm"

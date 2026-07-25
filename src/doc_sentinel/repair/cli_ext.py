@@ -19,7 +19,7 @@ def add_repair_parser(sub: argparse._SubParsersAction) -> None:  # type: ignore[
     p = sub.add_parser("repair", help="Generate and apply doc corrections from a check report")
     p.add_argument("--repo", type=Path, default=Path("."))
     p.add_argument("--report", type=Path, required=True, help="JSON report from `check`")
-    p.add_argument("--llm", choices=["anthropic", "openai"], default="anthropic")
+    p.add_argument("--llm", choices=["openai"], default="openai")
     p.add_argument("--confidence-threshold", type=float, default=0.8)
     p.add_argument("--apply", action="store_true", help="Write corrections to disk")
     p.add_argument("--output", type=Path, default=None, help="Write the repair report here")
