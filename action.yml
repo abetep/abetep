@@ -1,0 +1,65 @@
+name: "doc-sentinel"
+description: >-
+  Self-healing technical documentation: detects doc sections made stale by a
+  pull request's code changes, auto-fixes high-confidence drift via a docs PR,
+  and flags the rest for human review.
+author: "abetep"
+branding:
+  icon: "book-open"
+  color: "blue"
+
+inputs:
+  github-token:
+    description: "Token used to comment on the PR and open the docs fix PR"
+    required: true
+    default: ${{ github.token }}
+  anthropic-api-key:
+    description: "Anthropic API key (required when llm-provider is anthropic)"
+    required: false
+  openai-api-key:
+    description: "OpenAI API key (embeddings; also LLM when llm-provider is openai)"
+    required: false
+  llm-provider:
+    description: "anthropic | openai | none (none = detect and flag only, no LLM)"
+    required: false
+    default: "anthropic"
+  embeddings:
+    description: "openai | none (none = lexical links only)"
+    required: false
+    default: "openai"
+  confidence-threshold:
+    description: "Minimum confidence (0-1) for auto-fixing instead of drafting/flagging"
+    required: false
+    default: "0.8"
+  mode:
+    description: "fix (open a docs PR for corrections) | flag-only (comment only)"
+    required: false
+    default: "fix"
+
+outputs:
+  stale-count:
+    description: "Number of doc sections confirmed stale"
+  fixed-count:
+    description: "Number of sections auto-fixed or drafted in the docs PR"
+  flagged-count:
+    description: "Number of sections flagged for human review"
+  fix-pr-url:
+    description: "URL of the docs fix PR, when one was opened"
+
+runs:
+  using: "docker"
+  image: "Dockerfile"
+  env:
+    GITHUB_TOKEN: ${{ inputs.github-token }}
+    ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
+    OPENAI_API_KEY: ${{ inputs.openai-api-key }}
+  args:
+    - "run"
+    - "--llm"
+    - ${{ inputs.llm-provider }}
+    - "--embeddings"
+    - ${{ inputs.embeddings }}
+    - "--confidence-threshold"
+    - ${{ inputs.confidence-threshold }}
+    - "--mode"
+    - ${{ inputs.mode }}
