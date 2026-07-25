@@ -74,9 +74,13 @@ class ChromaEmbeddingCache:
     def put_many(self, items: dict[str, list[float]]) -> None:
         if not items:
             return
+        # Typed as Any: chromadb's stubs want ndarray-typed embeddings but
+        # accept plain float lists, and CI type-checks without chromadb
+        # installed, so a targeted type-ignore would flag as unused there.
+        embeddings: Any = list(items.values())
         self._collection.upsert(
             ids=list(items.keys()),
-            embeddings=list(items.values()),  # type: ignore[arg-type]
+            embeddings=embeddings,
             documents=["" for _ in items],
         )
 
