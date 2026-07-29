@@ -24,10 +24,11 @@ def require_env(name: str) -> str:
 class UsageTracker:
     """Accumulates token usage across LLM/embedding calls for cost reporting."""
 
-    # USD per 1M tokens; rough public list prices, only used for the summary estimate.
+    # USD per 1M tokens; rough gpt-4o-class list prices, only used for the
+    # summary estimate. Self-hosted OpenAI-compatible endpoints cost $0.
     PRICES = {
         "embedding": (0.02, 0.0),
-        "llm": (3.0, 15.0),
+        "llm": (2.5, 10.0),
     }
 
     def __init__(self) -> None:

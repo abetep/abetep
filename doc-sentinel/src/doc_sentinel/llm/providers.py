@@ -1,8 +1,15 @@
-"""Concrete embedding and LLM providers. Imports are lazy so tests run offline."""
+"""Concrete embedding and LLM providers. Imports are lazy so tests run offline.
+
+The LLM client speaks the OpenAI chat-completions API, which has become the
+de-facto standard: point it at api.openai.com (default) or at any
+OpenAI-compatible server (Azure OpenAI, Ollama, vLLM, OpenRouter, ...) via
+DOC_SENTINEL_LLM_BASE_URL / DOC_SENTINEL_LLM_MODEL.
+"""
 
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from typing import Any
 
@@ -17,8 +24,7 @@ from doc_sentinel.llm.base import (
 )
 
 EMBEDDING_MODEL = "text-embedding-3-small"
-ANTHROPIC_MODEL = "claude-sonnet-4-5"
-OPENAI_MODEL = "gpt-4o"
+DEFAULT_LLM_MODEL = "gpt-4o"
 
 
 class OpenAIEmbedder:
@@ -68,57 +74,38 @@ class ChromaEmbeddingCache:
     def put_many(self, items: dict[str, list[float]]) -> None:
         if not items:
             return
+        # Typed as Any: chromadb's stubs want ndarray-typed embeddings but
+        # accept plain float lists, and CI type-checks without chromadb
+        # installed, so a targeted type-ignore would flag as unused there.
+        embeddings: Any = list(items.values())
         self._collection.upsert(
             ids=list(items.keys()),
-            embeddings=list(items.values()),  # type: ignore[arg-type]
+            embeddings=embeddings,
             documents=["" for _ in items],
         )
 
 
-class AnthropicClient:
-    """Structured-output client using Anthropic tool use at temperature 0."""
+class OpenAICompatibleClient:
+    """Structured-output client for any OpenAI-compatible chat endpoint.
 
-    def __init__(self, usage: UsageTracker | None = None, model: str = ANTHROPIC_MODEL) -> None:
-        from anthropic import Anthropic
+    Environment overrides:
+    - DOC_SENTINEL_LLM_BASE_URL: alternate endpoint (Azure, Ollama, vLLM, ...)
+    - DOC_SENTINEL_LLM_MODEL: model name (default gpt-4o)
+    - DOC_SENTINEL_LLM_API_KEY: key for the alternate endpoint; falls back to
+      OPENAI_API_KEY, or "unused" for local servers that need none.
+    """
 
-        self._client = Anthropic(api_key=require_env("ANTHROPIC_API_KEY"))
-        self._usage = usage
-        self._model = model
-
-    def complete_structured(
-        self, system: str, user: str, schema: dict[str, Any], max_tokens: int = 2048
-    ) -> dict[str, Any]:
-        tool = {
-            "name": "emit_result",
-            "description": "Emit the structured result.",
-            "input_schema": schema,
-        }
-        resp = self._client.messages.create(
-            model=self._model,
-            max_tokens=max_tokens,
-            temperature=0,
-            system=system,
-            messages=[{"role": "user", "content": user}],
-            tools=[tool],
-            tool_choice={"type": "tool", "name": "emit_result"},
-        )
-        if self._usage:
-            self._usage.add_llm(resp.usage.input_tokens, resp.usage.output_tokens)
-        for block in resp.content:
-            if block.type == "tool_use":
-                return dict(block.input)
-        raise RuntimeError("Anthropic response contained no tool_use block")
-
-
-class OpenAIClient:
-    """Structured-output client using OpenAI JSON-schema response format."""
-
-    def __init__(self, usage: UsageTracker | None = None, model: str = OPENAI_MODEL) -> None:
+    def __init__(self, usage: UsageTracker | None = None, model: str | None = None) -> None:
         from openai import OpenAI
 
-        self._client = OpenAI(api_key=require_env("OPENAI_API_KEY"))
+        base_url = os.environ.get("DOC_SENTINEL_LLM_BASE_URL") or None
+        api_key = os.environ.get("DOC_SENTINEL_LLM_API_KEY", "").strip()
+        if not api_key:
+            # Local OpenAI-compatible servers usually accept any key.
+            api_key = "unused" if base_url else require_env("OPENAI_API_KEY")
+        self._client = OpenAI(api_key=api_key, base_url=base_url)
         self._usage = usage
-        self._model = model
+        self._model = model or os.environ.get("DOC_SENTINEL_LLM_MODEL", DEFAULT_LLM_MODEL)
 
     def complete_structured(
         self, system: str, user: str, schema: dict[str, Any], max_tokens: int = 2048
@@ -159,8 +146,6 @@ def get_embedder(
 
 
 def get_llm(provider: str, usage: UsageTracker | None = None) -> LLMClient:
-    if provider == "anthropic":
-        return AnthropicClient(usage)
     if provider == "openai":
-        return OpenAIClient(usage)
+        return OpenAICompatibleClient(usage)
     raise ValueError(f"Unknown LLM provider: {provider!r}")

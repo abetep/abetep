@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- **Provider-independent LLM client.** Removed the Anthropic API dependency;
+  the single LLM client now speaks the OpenAI chat-completions standard and
+  works against api.openai.com (default) or any OpenAI-compatible endpoint
+  (Azure OpenAI, Ollama, vLLM, OpenRouter, …) via the new `llm-base-url`,
+  `llm-model` and `llm-api-key` Action inputs
+  (`DOC_SENTINEL_LLM_BASE_URL/_MODEL/_API_KEY` on the CLI). With
+  `embeddings: none` plus a self-hosted endpoint the pipeline runs with no
+  external API at all.
+
 ## v0.1.0 — 2026-07-25
 
 Initial release.

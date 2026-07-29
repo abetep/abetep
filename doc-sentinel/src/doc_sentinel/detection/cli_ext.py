@@ -40,7 +40,7 @@ def add_check_parser(sub: argparse._SubParsersAction) -> None:  # type: ignore[t
     p.add_argument("--repo", type=Path, default=Path("."))
     p.add_argument("--base-ref", required=True)
     p.add_argument("--head-ref", default="HEAD")
-    p.add_argument("--llm", choices=["anthropic", "openai", "none"], default="anthropic")
+    p.add_argument("--llm", choices=["openai", "none"], default="openai")
     p.add_argument("--output", type=Path, default=None, help="Write the JSON report here")
     p.set_defaults(handler=cmd_check)
 
