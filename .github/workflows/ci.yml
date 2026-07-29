@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install -e ".[dev]" pydantic markdown-it-py GitPython PyGithub openai
+      - name: Lint
+        run: ruff check src tests && ruff format --check src tests
+      - name: Type-check
+        run: mypy
+      - name: Tests
+        run: pytest
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the Action image
+        run: docker build -t doc-sentinel:ci .

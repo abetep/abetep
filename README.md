@@ -176,8 +176,11 @@ python evals/run_evals.py
 
 ## Publishing to the Marketplace
 
-The Action is marketplace-ready (`action.yml` with branding, semver
-`CHANGELOG.md`). GitHub requires a marketplace Action to live at the root of
-its own public repository: extract this directory (`git subtree split` or a
-fresh repo), push, tag `v0.1.0` + `v0`, then "Publish to Marketplace" on the
-release page.
+The Action is marketplace-ready (`action.yml` with branding at the repo root,
+semver `CHANGELOG.md`). To publish:
+
+1. Tag the release: `git tag v0.1.0 && git tag -f v0 && git push origin v0.1.0 v0`
+2. Create a GitHub Release from `v0.1.0` and tick **Publish this Action to
+   the GitHub Marketplace** on the release page.
+
+Consumers then use `abetep/doc-sentinel@v0` as shown in the quickstart.
